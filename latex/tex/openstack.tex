@@ -1,0 +1,383 @@
+\documentclass[a4paper]{book}
+\usepackage[utf8]{inputenc}
+\usepackage[brazilian]{babel}           % estas quatro linhas
+\usepackage{indentfirst}
+\usepackage{graphicx}
+\usepackage{ragged2e}
+\usepackage{marginnote}
+\usepackage{framed,color}
+\definecolor{shadecolor}{rgb}{1,0.8,0.3}
+\begin{document}
+
+	%Falar um pouco sobre o que OpenStack
+
+	\chapter{Introducao ao Openstack}
+	\section{O que e Openstack}
+	\justify
+	
+					Em um primeiro momento poderíamos definir vagamente OpenStack como um software de 			cloud computing. Sendo um pouco mais específico: um Sistema Operacional projetado 			para nuvem capaz de controlar uma enorme quantidade de recursos computacionais 				(processamento, armazenamento e rede) em um Datacenter, ou seja, OpenStack é um 				\underline{projeto aberto} para a criação de nuvens privadas e públicas, 		um 				sistema 			operacional para gestão e controle nuvem. Um cenário típico de 				um ambiente de 				cloud.	
+		
+		O termo \underline{projeto aberto} neste contexto merece destaque, pois implica 				que o projeto nasceu com o objetivo de ser transparente e independente de 					fabricante. O site do projeto destaca os seguintes valores:\textbf{open source, 				open design, open development and an open community}.
+		
+		Como “plataforma base” poderíamos empregar o software OpenStack, por exemplo, para 		construção de uma solução de Infraestutura como Serviço (Infrastructure as a 					Service – IaaS).	
+		
+		Basicamente uma plataforma de IaaS fornece meios para criação/provisionamento de 				máquinas virtuais (ou nós computacionais) sob demanda. Permitindo ainda que sua 				infraestrutura de servidores possa expandir ou encolher de forma elástica de 					acordo com a necessidade da sua aplicação.
+		
+		
+		\subsection{Arquitetura}
+			Como uma plataforma de computação em nuvem o OpenStack foi projetado para ser 				extremamente \underline{escalável e flexível}. A plataforma é composta por 					vários “sub projetos” que juntos formam o seu núcleo (core).  Sua arquitetura 				é modular formada por vários componentes que juntos implementam as 							funcionalidades 	três pilares que sustentam uma infraestrutura de nuvem: 						Processamento (compute), Rede (networking) e  Armazenamento (storing).
+
+			%Tabela processamento			
+			\begin{center}
+				\begin{tabular}{|l||c|c|}
+				\hline
+				\multicolumn{2}{|c|}{\textbf{Estruturas de processamento}}\\
+				\hline
+				Nome		&Funcao\\
+				\hline \hline
+				nova&	Gerencia o ciclo de vida das instâncias de computação em um 							ambiente \\&OpenStack. As responsabilidades incluem a geração, 								programação des-\\&mantelamento de máquinas virtuais sob demanda.\\
+				\hline
+				\end{tabular}
+			\end{center}
+			
+			%Tabela networking
+			\begin{center}
+				\begin{tabular}{|l||c|c|}
+				\hline
+				\multicolumn{2}{|c|}{\textbf{Estruturas de networking}}\\
+				\hline
+				Nome		&Funcao\\
+				\hline \hline
+				Neutron(nova-compute)&	Permite Network-Conectividade-as-a-Service para ou-\\&tros serviços OpenStack, como OpenStack Compute.\\& Fornece uma API para que os usuários definam as\\& redes e os anexos neles. Tem uma arquitetura conec-\\&tável que suporta muitos fornecedores de redes popu-\\&lares e tecnologias.\\
+				\hline
+				\end{tabular}
+			\end{center}
+
+			%Tabela storage
+						%Tabela networking
+			\begin{center}
+				\begin{tabular}{|l||c|c|}
+				\hline
+				\multicolumn{2}{|c|}{\textbf{Estruturas de storage}}\\
+				\hline
+				Nome		&Funcao\\
+				\hline \hline
+				Swift&	
+Armazena e recupera objetos de dados não estruturados arbitrárias atra-\\&vés de um HTTP baseado API RESTful. É altamente tolerante a falhas\\& com a sua replicação de dados e arquitetura scale-out. A sua implemen-\\&tação não é como um servidor de arquivos com diretórios montáveis.\\& Neste caso, ele grava objetos e arquivos para várias unidades, garantindo\\& que os dados são replicados em um cluster de servidor\\
+				\hline \hline
+				Cinder&	
+Fornece armazenamento em bloco persistente para instâncias em execução.\\& Sua arquitetura condutora conectável facilita a criação e gestão de disposi-\\&tivos de armazenamento de bloco.\\
+\hline
+				\end{tabular}
+			\end{center}
+		
+Além dos componentes que formam o core do OpenStack a plataforma conta com um conjunto de serviços que integra cada componente para fornecer uma plataforma de IaaS completa. Essa integração é possível porque cada componente disponibiliza um conjunto APIs que permite o acesso às suas funcionalidades. Os serviços são os seguintes:			
+
+			%tabela de servicos
+			\begin{center}
+				\begin{tabular}{|l||c|c|}
+				\hline
+				\multicolumn{2}{|c|}{\textbf{Estruturas de processamento}}\\
+				\hline
+				Serviço		&Funcao\\
+				\hline \hline
+				Keystone& Fornece um serviço de autenticação e autorização para outros serviços\\& OpenStack. Fornece um catálogo de pontos de extremidade para todos\\& os serviços OpenStack.\\
+				\hline \hline
+				Glance&	Armazena e recupera imagens de disco de máquina virtual. OpenStack\\& Compute faz uso deste durante o exemplo de provisionamento.\\
+				\hline \hline
+				Ceilometer& 
+Monitora e faz medidas do OpenStack nuvem para o faturamento,\\& o benchmarking,
+escalabilidade e fins estatísticos.\\
+				\hline \hline
+				Heat& Orquestra múltiplas aplicações em nuvem compostas usando o forma-\\&to de modelo HOT nativo ou o formato de modelo AWS CloudForma-\\&tion, tanto através de uma API REST OpenStack-nativo e uma consul-\\&ta API CloudFormation-compatível.\\
+				\hline \hline
+				Trove&	Fornece dados-as-a-Service funcionalidade escalável e confiável nuvem\\& para ambos os motores de banco de dados relacionais e não-relacionais.
+				\end{tabular}
+			\end{center}
+			
+		\begin{figure}
+
+			\includegraphics[width=\textwidth, height=\textheight,keepaspectratio]{/home/nashjunior/Documentos/latex/img/arquitetura.png}
+			\caption{Arquitetura do OpenStack}
+		\end{figure}
+
+		\subsection{Exemplo de Arquitetura}
+		OpenStack é altamente configurável para atender às necessidades diferentes, com vários nós Compute, rede e opções de armazenamento. Neste tutorial será utilizado as seguintes configurações:
+		
+		\begin{itemize}
+			\item O nó \emph{Controller} executa o serviço de Identidade, serviço de imagem, parte do Compute gestão, e o painel de instrumentos. Ele também inclui suporte de serviços como um banco de dados SQL, fila de mensagens, e Network Time Protocol (NTP).
+			\item O nó \emph{Compute} executa parte da do Hypervisor do \emph{Compute} que opera os "tenants" das máquinas virtuais, ou instancias. Por padrão, Compute usa KVM como o hypervisor.Nó \emph{Compute}também dispõe "tenants" de rede  fornece firewall (grupos de segurança) serviços.Pode-se executar mais de um nó.\emph{Compute}
+		\end{itemize}
+		
+		Opcionalmente, o nó Compute executa um agente de telemetria para recolher metros. Além disso, ele pode conter uma terceira interface de rede em uma rede de armazenamento separado para melhorar o desempenho dos serviços de armazenamento.
+		
+		\begin{itemize}
+			\item O nó \emph{Block Storage} opcional contém os discos que o serviço Block Storage provisões para instâncias de máquinas virtuais inquilino. Pode-se executar mais de um desses nós;
+			
+			\item O nó \emph{Object Storage} contêm o discos que o serviço de armazenamento objeto usa para conta de armazenamento, recipiente e objeto. A arquitetura minima são dois nós.
+		\end{itemize}
+		\begin{center}
+			\begin{figure}
+				\includegraphics[width=\textwidth, height=\textheight,keepaspectratio]{/home/nashjunior/Documentos/latex/img/legacy.png}
+			\caption{Arquitetura minima de hardware para suportar OpenStack}
+				\includegraphics[width=\textwidth, height=\textheight,keepaspectratio]{/home/nashjunior/Documentos/latex/img/arch_legacy.png}
+				\caption{Arquitetura de rede para o OpenStack}
+			\end{figure}					
+		\end{center}		
+
+	\chapter{Ambiente Basico}
+	\section{Passos iniciais de instalacao}
+	Para melhor performance, é recomendado que o ambiente seja parecido ou exceda os requisitos de hardware na figura 1.2  do capítulo anterior. No entanto, OpenStack não requer uma quantidade significativa de recursos e os seguintes requisitos mínimos devem suportar um ambiente de "proof-of-concept" com os serviços centrais e várias instâncias CirrOS
+	\begin{itemize}
+		\item \emph{\underline{nó Controller}}:1 processador, 2GB de memória e 10GB de armazenamento
+		
+		\item \emph{\underline{nó Compute}}: 1 processador, 2GB de memória e 20GB de armazenamento		
+	\end{itemize}					
+	
+	Para poupar espaço em disco e fornecer mais recursos para OpenStack, recomendamos uma instalação mínima de sua distribuição Linux. Além disso, é altamente recomendável que você instalar uma versão de sua distribuição de 64 bits em, pelo menos, o nó \emph{Compute}. Se você instalar uma versão de sua distribuição no nó  \emph{Compute} de 32 bits, a tentativa de iniciar uma instância usando uma imagem de 64 bits falhará.
+	Muitos usuários construir seus ambientes de teste em máquinas virtuais (VMs). Os principais benefícios de VMs incluem o seguinte:
+	
+	\begin{itemize}
+		\item Um servidor físico pode suportar vários nós, cada um com praticamente qualquer número de interfaces de rede.
+		
+		\item Capacidade de tomar "snap shots" periódicas durante todo o processo de instalação e "voltar" para uma configuração de trabalho, no caso de um problema.
+	\end{itemize}
+
+	
+	\begin{snugshade}
+		\$ openssl rand -hex 10		
+	\end{snugshade}
+	
+	Para as senhas dos serviços do OpenStack, use \emph{SERVICE\_$PASS$}	 e para as senhas de banco de dados \emph{DB\_$PASS$}.
+
+				\begin{center}
+				\begin{tabular}{|l||c|c|}
+				\hline
+				\textbf{Nome da Senha}& \textbf{Descricao}\\
+				\hline \hline
+				\emph{ADMIN\_$PASS$}& Senha do usuario \emph{admin} \\
+				\hline \hline
+							
+				\emph{CEILOMETER\_$DBPASS$} \\
+				\hline \hline
+				
+				\emph{CEILOMETER\_$PASS$} \\
+				\hline \hline
+				
+				\emph{CINDER\_$DBPASS$} \\
+				\hline \hline
+				
+				\emph{CINDER\_$PASS$} \\
+				\hline \hline
+				
+				\emph{DEMO\_$PASS$}& Senha do usuario \emph{demo}\\
+				\hline \hline
+				
+				\emph{GLANCE\_$DBPASS$}& Senha do banco de dados para o servico de Imagem \\
+				\hline \hline
+				
+				\emph{GLANCE\_$PASS$}& Senha do usuario de servico de Imagem \emph{glance} \\
+				\hline \hline
+				
+				\emph{KEYSTONE\_$DBPASS$}& Senha do banco de dados para o servico de autenticacao \\
+				\hline \hline
+				
+				\emph{NOVA\_$DBPASS$}& Senha do banco de dados para o servico \emph{Compute} \\
+				\hline \hline
+				
+				\emph{NOVA\_$PASS$}& Senha do usuario de servico de \emph{Compute} \\
+				\hline \hline
+				
+				\emph{RABBIT\_$PASS$}& Senha do usuario convidado do \emph{RabbitMQ} \\
+				\hline
+				\end{tabular}
+			\end{center}
+			Neste guia está sendo utilizado "\emph{openstack}" como senha para o banco de dados e para os serviços 		
+
+		OpenStack e serviços de suporte exigem privilégios administrativos durante a instalação e operação. Em alguns casos, os serviços de realizar modificações para o host que pode interferir com ferramentas de automação de implantação, tais como Ansible, Chef e Puppet. Por exemplo, alguns serviços OpenStack adicionar um envoltório de "root" para sudo que podem interferir com as políticas de segurança.
+		
+		Depois de instalar o sistema operacional em cada nó para a arquitetura que optar por utilizar, é necessário configurar as interfaces de rede.É recomendado que desativar todas as ferramentas de gerenciamento de rede automatizados e editar manualmente os arquivos de configuração apropriados para distribuição.
+		
+		\section{Distribuicao da Rede no modo Legacy (nova-network)}
+		O exemplo da arquitetura com a rede no modo Legacy requer um nó controlador e pelo menos um nó \emph{Compute}.O nó controlador contém uma interface de rede na rede de gestão.O nó \emph{Compute} contém uma interface de rede na rede de gestão e um na \emph{rede externa}.
+		
+		A arquitetura em exemplo assume o uso da seguintes redes:
+		\begin{itemize}
+			\item \underline{Gerenciador de rede}: 
+			\item \underline{Rede externa}:
+		\end{itemize}
+		
+		
+		\subsection{Controller Node}
+			\subsubsection{Configuracao da Rede}
+			\begin{itemize}
+				\item \underline{Endereco de Ip}:10.129.64.51
+				\item \underline{Mascara de Rede}: 255.255.255.0 (ou /24)
+				\item \underline{Gateway}:
+			\end{itemize}
+			Reinicie o sistema para ativar as mudancas
+			
+			\subsubsection{Configurar nome da Rede}
+			\begin{itemize}
+				\item Configurar o nome do computador (hostname) do nó para Controller
+				\item Editar o arquivo \emph{\underline{/etc/hosts}} com as seguintes 						configuracoes 
+				
+					\begin{snugshade}
+						$\#$controller \\  \\
+						10.129.64.51 		controller \\ \\
+						\#$compute1$\#		\\ \\
+						10.129.64.61		compute1\\
+					\end{snugshade}
+			\end{itemize}
+			
+			\underline{\textbf{OBS}}: Algumas distribuições adicionam uma entrada estranha no arquivo \underline{/etc/hosts} que resolve o nome da máquina para outro endereço IP de auto-retorno, como 127.0.1.1. Você deve comentar ou remover esta entrada para evitar problemas de resolução de nomes.
+			
+			\subsection{Nó Compute}
+			\subsubsection{Configuracao da Rede}
+				Configurar a primeira interface como interface de gerenciamento
+				\begin{itemize}
+					\item \underline{Endereco de Ip}:10.129.64.61
+					\item \underline{Mascara de rede}: 255.255.255.0 (ou /24)
+					\item \underline{Gateway}:
+				\end{itemize}							
+			
+				Configurar a segunda interface como externa utilizando uma configuracao especial sem um endereco de Ip assinalado. 
+				
+				Reescreva \emph{$NOME_INTERFACE$} com o nome da interface atual. Exemplo: eth1, ens224
+				
+
+				\begin{itemize}
+					\item Edite o arquivo \emph{\underline{/etc/network/interfaces}} com as seguintes configuracoes:
+					
+					\begin{snugshade}
+						\#$A interface externa da rede$ \\
+						auto \emph{NOME\_$INTERFACE$} \\
+						iface \emph{NOME\_$INTERFACE$} inet manual \\
+						\hspace*{2 cm}  up ip link set dev \$IFACE up \\
+						\hspace*{2 cm}  down ip link set dev \$IFACE down \\					
+					\end{snugshade}
+				\end{itemize}
+				Reinicie o sistema para ativar as mudancas
+
+				\subsubsection{Configurar nome da rede}
+				\begin{itemize}
+					\item Coloque o nome do computador (hostname) do no como \emph{compute1}
+					\item Edite o arquivo \emph{\underline{/etc/hosts}} com as seguintes configuracoes
+						\begin{snugshade}
+						$\#$controller \\  \\
+						10.129.64.51 		controller \\ \\
+						$\#$compute1$\#$		\\ \\
+						10.129.64.61		compute1\\
+						\end{snugshade}
+				
+				\end{itemize}
+				
+				\section{Pacotes OpenStack}
+				
+				Distribuições liberam pacotes OpenStack como parte da distribuição ou usando outros métodos devido às diferentes datas de lançamento. Realizar esses procedimentos em todos os nós
+				
+				\underline{\textbf{OBS}}: Desativar ou remover qualquer servico de atualizacao automatica, pois pode modificar o ambiente OpenStack
+				
+				\subsubsection{Permitir OpenStack Repositorio}
+				\begin{itemize}
+					\item Instalar o arquivo "keyring" Ubuntu Cloud e repositorio
+						\begin{snugshade}
+						$\#$ apt-get install ubuntu-cloud-keyring \\ 
+						$\#$echo \hspace*{0.2 mm} "deb http://ubuntu-cloud.archive.canonical.com/ubuntu" "trusty-updates/kilo main" \textgreater /etc/apt/sources.list.d/cloudaarchive-kilo.list 								\\ \\
+						\end{snugshade}
+				\end{itemize}
+				\subsubsection{Finalizar Instalacao}
+				\begin{itemize}
+					\item \# apt-get update \&\& apt-get dist-upgrade
+				\end{itemize}
+				\underline{\textbf{OBS}}: Se a atualizacao inclui um novo kernel, reiniciar o sistema para ativar
+		
+		
+		\section{Banco de dados SQL}
+		A maioria dos servicos OpenStack usa um banco de dados SQL para armazenar informacao. O banco de dados tipicamente executa no nó Controller. O procedimento nesta documentação usa o MariaDB ou o MySQL dependendo da distribuicao. Os servicos do OpenStack também suporta outros bancos de dados SQL.
+		
+		\subsubsection{Instalar e configurar o banco de dados do Servidor}		
+		\begin{enumerate}
+			\item Instalar pacotes
+			\begin{snugshade}
+			\# apt-get install mariadb-server python-mysqldb
+			\end{snugshade}			
+			
+			\item Escolhe uma senha para a conta de super-usuario
+			
+			\item Criar e editar o arquivo \emph{\underline{/etc/mysql/conf$\cdot$d/mysqld\_$openstack$ $\cdot$cnf}} com as seguintes configuracoes:
+			\begin{snugshade}
+				[mysqld] \\
+				$\cdots$ \\
+				bind-address = 10.129.64.51
+				default-storage-engine = innodb \\
+				innodb$\_$file$\_$per$\_$table  \\
+				collation-server = utf8$\_$general$\_$ci\\
+				init-connect = 'SET NAMES utf8'\\
+				character-set-server = utf8
+			\end{snugshade}
+			\end{enumerate}
+					\subsubsection{Finalizar Instalação}
+			\begin{enumerate}
+				\item Reiniciar o banco de dados
+				\begin{snugshade}
+					service mysql restart
+				\end{snugshade}
+				
+				\item Guardar o banco de dados
+				\begin{snugshade}
+				\# mysql$\_$secure$\_$installation
+				$\cdots$ \\  \\
+				Set root password? [Y/N]
+				$\cdots$ \\ \\
+				Remove anonymous users? [Y/N] y \\
+				$\cdots$ Sucess! \\ \\
+				$\cdots$ \\ \\
+				Disallow root login remotely? [Y/N] y \\
+				$\cdots$ Sucess! \\ \\
+				Remove test database and access to it? [Y/N] Y \\
+				- Dropping test database $\cdots$ \\
+				$\cdots$ Sucess! \\ 
+				- Removing privileges on test database $\cdots$ \\
+				$\cdots$ Success! \\ \\
+				$\cdots$ \\ \\
+				Reload privilege tables now? [Y/N] Y		\\
+				$\cdots$	 Sucess! \\ \\
+				$\cdots$ \\ \\
+				Thanks for using MariaDB!
+				\end{snugshade}								
+			\end{enumerate}
+
+			\section{Fila de Mensagens (Message QUEUE)}
+			OpenStack usa o \emph{message queue}	para coordernar operações e  status da informacao através dos serviços. O servico \emph{message queue} tipicamente é executado no nó Controller. OpenStack suporta vários servicos de fila de mensagem, incluindp RabbitMQ,Qpid e ZeroMQ. Contudo, a maioria das distribuições que o pacote OpenStack suporta um particular servico de fila de mensagens. Esta documentação implementa o RabbitMQ servico de \emph{message queue}, pois a maioria das distribuições o suportam. 
+			
+			\subsection{Instalar o pacote de fila de mensagens}
+			\begin{itemize}
+				\item Instalar o pacote
+				\begin{snugshade}
+					\# apt-get install rabbitmq-server
+				\end{snugshade}
+			\end{itemize}
+		
+			\subsection{Configurar o serviço de fila de mensagens}
+			\begin{enumerate}
+				\item Adicionar o usuário \emph{openstack}
+				\begin{snugshade}
+					\# rabbitmqctl add$\_$user openstack \textbf{RABBIT$\_$\textbf{PASS}} \\
+					Creating user ''openstack'' $\cdots$	\\
+					$\cdots$ done.
+				\end{snugshade}
+				
+				\item Permitir configuração, escrita, e acesso a leitura  for \emph{user}
+				\begin{snugshade}
+					\# rabbitmqctl set$\_$permissions openstack ''.* '' ''.* '' ''.*'' \\
+					Setting permissions for user ''openstack'' vhost ''/''
+				\end{snugshade}
+			\end{enumerate}
+			
+			
+			\input{/home/nashjunior/Documentos/latex/cap3/cap3.tex}
+			\input{/home/nashjunior/Documentos/latex/cap4/cap4.tex}				
+			\input{/home/nashjunior/Documentos/latex/cap5/cap5.tex}			
+			\input{/home/nashjunior/Documentos/latex/cap6/cap6.tex}				
+\end{document}

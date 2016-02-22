@@ -1,0 +1,86 @@
+\chapter{Adicionando a rede}
+Redes Legacy envolve principalmente nós de computação. No entanto, é necessário configurar o nó controlador para usar a rede Legacy
+
+\section{Configurando o nó controlador}
+\begin{enumerate}
+	\item Editar o arquivo \emph{/etc/nova/nova.conf} e completar as seguintes ações
+	\begin{snugshade}
+		[default]\\
+		$\cdots$ \\
+		network$\_$api$\_$class = nova.network.api.API \\
+		security$\_$group$\_$api = nova
+	\end{snugshade}
+	
+	\item Reiniciar os serviços Compute
+	\begin{snugshade}
+		\# service nova-api restart \\
+		\# service nova-scheduler restart \\
+		\# service nova-conductor restart \\
+	\end{snugshade}
+\end{enumerate}
+
+\section{Configurando o nó Compute}
+Esta seção  implantação de uma rede plana simples que fornece endereços IP a instâncias via DHCP.
+
+\subsection{Instalar componentes de rede Legacy}
+\begin{itemize}
+	\item Instalar o seguinte pacote
+	 \begin{snugshade}
+		\# apt-get install nova-network nova-api-metadata
+	\end{snugshade}
+\end{itemize}
+
+\subsection{Configurando a rede Legacy}
+\begin{enumerate}
+	\item Editar o arquivo \emph{/etc/nova/nova.conf} e colocar os seguintes dados
+	\begin{snugshade}
+		[DEFAULT]\\
+		$\cdots$\\
+		network$\_$api$\_$class = nova.network.api.API\\
+		security$\_$group$\_$api = nova \\
+		firewall$\_$driver = nova.virt.libvirt.firewall.IptablesFirewallDriver\\
+		network$\_$manager = nova.network.manager.FlatDHCPManager\\
+		network$\_$size = 254\\
+		allow$\_$same$\_$net$\_$traffic = False\\
+		multi$\_$host = True
+		send$\_$arp$\_$for$\_$ha = True
+		share$\_$dhcp$\_$address = True
+		force$\_$dhcp$\_$release = True
+		flat$\_$network$\_$bridge = br100
+		flat$\_$interface = INTERFACE$\_$NAME
+		public$\_$interface = INTERFACE$\_$NAME
+	\end{snugshade}
+	
+	\item Reiniciar os serviços
+	\begin{snugshade}
+		\# service nova-network restart
+		\# service nova-api-metadata restart
+	\end{snugshade}
+\end{enumerate}
+
+\section{Criando uma rede inicial}
+Antes de lançar a primeira instância, deve-se criar a infra-estrutura de rede virtual necessária para que a instância irá se conectar. Esta rede normalmente fornece acesso à Internet a partir de instâncias. Pode permitir o acesso à Internet para instâncias individuais usando um IP flutuante endereço e regras do grupo de segurança adequadas. O inquilino administrador detém esta rede, pois fornece acesso à rede externa para vários inquilinos.
+
+
+Esta rede tem a mesma sub-rede associado com a rede física ligada à interface externa no nó de computação.Deve ser especificado uma fatia exclusivo deste sub-rede para evitar a interferência com outros dispositivos na rede externa.
+
+\textbf{\underline{OBS}}: Executar os comandos no nó controlador
+
+\subsubsection{Criando a rede}
+\begin{enumerate}
+\item De origem as credenciais de administrador para ter acesso ao admin-somente comandos CLI:
+		\begin{snugshade}
+			\$ source admin-openrc.sh
+		\end{snugshade}			
+		
+\item Criar a rede
+		\begin{snugshade}
+			\$ nova network-create demo-net --bridge br100 --multi-host T \textbackslash
+--fixed-range-v4 NETWORK$\_$CIDR
+		\end{snugshade}			
+		
+\item Verificar a criação da rede
+		\begin{snugshade}
+			\$ nova net-list
+		\end{snugshade}			
+\end{enumerate}

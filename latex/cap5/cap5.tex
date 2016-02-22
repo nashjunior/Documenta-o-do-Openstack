@@ -1,0 +1,312 @@
+\chapter{Serviço Compute}
+
+Usa-se o OpenStack Compute para hospedar e gerenciar sistemas de computação nas nuvens. OpenStack Compute é parte principal de um sistema IaaS (Infrastructure-as-a-Service). Os módulos principais são implementados em Phyton.
+
+OpenStack Compute interage com o OpenStack Identity para autenticação, com o serviço OpenStack Image para disco e servidor de imagens. Acesso a imagem é limitado por projetos e usuários; parte é limitada para projeto (numero de instâncias, por exemplo). OpenStack Compute pode escalar horizontalmente os padrões de software fazer o download de imagens e executar instâncias.
+
+\begin{tabular}{|l||c|c|}
+	\hline \\
+	\multicolumn{2}{c}{API} \\
+	\hline \hline 
+	Serviço nova-api& Aceita e reponde para o usuário final computar\\& a API de chamadas. Faz cumprir algumas políticas\\& e inicia a execução de ima instância. \\
+	\hline \hline
+	Servico nova-api-metadata& Aceita requisições de metadados vindos das intâncias.\\& O serviço \emph{nova-api-metadata} é geralmente utilizado\\& quando executa-se em modo multi-host a instalação \emph{nova-network}\\
+	\hline \hline
+\end{tabular}
+
+\begin{tabular}{|l||c|c|}
+	\hline \\
+	\multicolumn{2}{c}{Nucleo Compute} \\
+	\hline \hline
+	Serviço nova-compute& Um daemon operário que cria e termina as instâncias\\& de máquinas virtuais através da API do hypervisor\\&. Como exemplo, libvirt para KVM ou QEMU, VMwareAPI para\\& VMware. O processo e complexo. Basicamente, o daemon aceita\\& ações vindos da fila e realiza uma série de comandos\\& de sistema assim como lançar uma instância API KVM\\& e atualiza o estados na base de dados \\
+	\hline \hline
+	
+	Serviço nova-scheduler& Tira uma requisição da instância da máquina\\& virtual da fila e determina em qual servidor\\& compute hospedeiro ele executa \\
+	\hline \hline
+	
+	\textbf{Modulo} nova-conductor& Media as interações entre o serviço \emph{nova-compute}\\& e o banco de dados. Elimina o acesso direto para o\\& banco de dados nas nuvens feito pelo serviço\\& \emph{nova-compute}. O módulo \emph{nova-conductor} escala horizontalmente\\&. Contudo, ele nao implanta dentro dos nós onde o s\\&erviço \emph{nova-compute} executa. \\
+	\hline \hline
+	
+	Modulo nova-cert& Um servidor daemon que serve o serviço Nova\\& Cert. Utilizado para gerar certificados para \emph{\textbf{euca-bundle-image}} \\
+	\hline
+\end{tabular}
+
+\begin{tabular}{|l||c|c|}
+\hline
+\multicolumn{2}{|c|}{Redes para as máquinas virtuais} \\
+\hline \hline
+Daemon nova-network operário& Similar ao serviço \emph{nova-compute}, aceita as\\& tarefas da rede vindos da fila e manipula a \\&rede. Realiza tarefas assim como ajusta\\& e levanta as interfaces ou muda\\& as regras IPTables \\
+\hline
+\end{tabular}
+
+\begin{tabular}{|l||c|c|}
+\hline
+\multicolumn{2}{|c|}{Interface de console} \\
+\hline \hline
+daemon nova-consoleauth& Autoriza tokens para usuários que consoles\\& de proxy fornecem. Este serviço deve estar\\& executando para os consoles de proxy\\& trabalharem.\\
+\hline \hline
+
+daemon nova-novncproxy& Fornece um proxy para acessar instâncias\\& em execução através de uma conexão VNC.\\& Suporta clientes novnc browser baseado.\\
+\hline
+\end{tabular}
+
+\begin{tabular}{|l||c|c|}
+\hline
+\multicolumn{2}{|c|}{Outros Componentes} \\
+\hline \hline
+A fila& Um hub central para a passagem de mensagens entre\\& daemons. Normalmente implementado com RabbitMQ \\
+\hline \hline
+
+Banco de dados SQL& Armazena maioria do tempo construção tempo de execução estados para uma infra-estrutura de nuvem, incluindo tipos de instâncias disponíveis, instâncias em uso, redes disponíveis
+\end{tabular}
+
+\section{Instalando e Configurando no nó Controllador}
+\subsubsection{Configurando os pre-requisitos}
+Antes de instalar e configurar o serviço Compute, deve ser criado um banco de dados, as credenciais de serviço, e ponto final API.
+
+\begin{enumerate}
+		\item Acessar o banco de dados de acesso cliente para conectar ao servidor da base de dados como \emph{root} usuário:
+		\begin{snugshade}
+			\$ mysql -u root -p
+		\end{snugshade}
+	
+		\item Para criar o banco de dados, executar as seguintes instruçoes
+		\begin{snugshade}
+			CREATE DATABASE nova; \\ \\
+			GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY 'NOVA$\_$DBPASS'; \\ \\
+			GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'\%' IDENTIFIED BY '\emph{NOVA$\_$DBPASS}'
+			\end{snugshade}
+			
+		\item De origem as credenciais de administrador para ter acesso ao admin-somente comandos CLI:
+		\begin{snugshade}	
+			\$ source admin-openrc.sh
+		\end{snugshade}	
+		
+		\item Para criar as credenciais de serviço, execute as seguintes funcoes
+		\begin{itemize}
+			\item Criar usuario nova
+				\begin{snugshade}	
+					\$ 	keystone user-create --name nova --pass \$KEYSTONE$\_$USER$\_$NOVA$\_$PASSWORD --email \$EMAIL$\_$NOVA
+				\end{snugshade}	
+	
+	
+			\item Adicionar a regra \emph{admin}	para o usuário \emph{nova} e o projeto de serviço
+				\begin{snugshade}	
+					\$ keystone user-role-add --user nova --tenant service --role admin
+				\end{snugshade}	
+
+			\item Criar a entidade de serviço \emph{nova}
+				\begin{snugshade}
+						keystone service-create --name nova --type compute--description "OpenStack Compute"
+				\end{snugshade}			
+			
+			
+			\item Criar API endpoint do serviço de imagem
+				\begin{snugshade}	
+					\$ keystone endpoint-create \textbackslash \\
+	  --service-id \$(keystone service-list \textbar awk '\textbar image / {print \$2}') \textbackslash \\
+	  --publicurl http://controller:9292/v2/\%\textbackslash(tenant$\_$id\textbackslash)s  \textbackslash \\
+	  --internalurl http://controller:9292/v2/\%\textbackslash(tenant$\_$id\textbackslash)s  \textbackslash \\
+	  --adminurl http://controller:9292/v2/\%\textbackslash(tenant$\_$id\textbackslash)s  \textbackslash \\
+	  --region regionOne
+				\end{snugshade}	
+
+		\end{itemize}				
+\end{enumerate}
+
+\subsection{Instalando e Configurando os componentes do nó controlador}
+\begin{enumerate}
+	\item Instalar os pacotes
+	\begin{snugshade}
+		\# apt-get install nova-api nova-cert nova-conductor nova-consoleauth nova-novncproxy nova-scheduler python-novaclient
+	\end{snugshade}
+	
+	\item Editar o arquivo \emph{/etc/nova/nova.conf} com os seguintes dados
+	\begin{snugshade}
+		[default]\\
+		$\cdots$\\
+		verbose = true\\
+		rpc$\_$backend = rabbit	\\
+		auth\_strategy = keystone\\
+		my$\_$ip= 10.129.64.51
+		vncserver$\_$listen = 10.129.64.51
+		vncserver$\_$proxyclient$\_$address = 10.129.64.51
+		
+		$\cdots$\\ \\
+		
+		[database] \\
+		$\cdots$ \\
+		connection = mysql://glance:NOVA$\_$\emph{DBPASS@}controller/glance \\ \\
+		
+		$\cdots$\\ \\
+		
+		[oslo$\_$messaging$\_$rabbit]\\
+		$\cdots$
+		rabbit$\_$host = controller \\
+		rabbit$\_$userid = openstack \\
+		rabbit$\_$password = RABBIT$\_$PASS\\
+		
+		$\cdots$\\ \\		
+		
+		[keystone$\_$authtoken] \\
+		$\cdots$ \\
+		auth$\_$uri = http://controller:5000 \\
+		auth$\_$url = http://controller:35357 \\
+		auth$\_$plugin = password \\
+		project$\_$domain$\_$id = default \\
+		user$\_$domain$\_$id = default \\
+		project$\_$name = service \\				
+		username = glance \\
+		password = \emph{•}{NOVAPASS}\\ \\
+		$\cdots$ \\ \\
+						
+		[glance]\\
+		$\cdots$		\\
+		host = \emph{controller} \\ \\
+		$\cdots$ \\ \\		
+		
+		[oslo$\_$concurrency] \\
+		$\cdots$\\
+		lock$\_$path = /var/lib/nova/tmp
+	\end{snugshade}
+	
+	\item Popular a base de dados do Compute
+	\begin{snugshade}
+		\# su -s /bin/sh -c "nova-manage db sync" nova
+	\end{snugshade}
+\end{enumerate}
+
+\subsection{Finalizando a instalação}
+\begin{enumerate}
+	\item Reiniciar os serviços Compute
+	\begin{snugshade}
+		\# service nova-api restart
+		\# service nova-cert restart
+		\# service nova-consoleauth restart
+		\# service nova-scheduler restart
+		\# service nova-conductor restart
+		\# service	nova-novncproxy restart
+	\end{snugshade}
+	
+	\item Por padrão, os pacotes Ubuntu cria um banco de dados SQLite. 
+	Por conta desta configuracao utilizar o servidor banco de dados SQL, remover a base de dados do arquivo SQLite:
+	\begin{snugshade}
+		\# rm -f /var/lib/nova/nova.db
+	\end{snugshade}		
+\end{enumerate}
+
+\section{Instalando e Configurando no nó Compute}
+
+Instalando e configurando os componentes do hypervisor no Compute
+\begin{enumerate}
+	\item Instalar os pacotes
+	\begin{snugshade}
+		\# apt-get install nova-compute sysfsutils
+	\end{snugshade}	
+	
+	\item Editar o arquivo \emph{/etc/nova/nova.conf} e inserir os seguintes dados
+	\begin{snugshade}
+		[default]\\
+		$\cdots$\\
+		verbose = true\\
+		rpc$\_$backend = rabbit	\\
+		auth$\_$estrategy = keystone\\
+		my$\_$ip= 	10.129.64.61
+		vnc$\_$enabled = true
+		vncserver$\_$listen = 0.0.0.0
+		vncserver$\_$proxyclient$\_$address = 10.129.64.61
+		novncproxy$\_$base$\_$url = http://controller:6080/vnc$\_$auto.html
+		
+		$\cdots$\\ \\
+		
+		[database] \\
+		$\cdots$ \\
+		connection = mysql://glance:NOVA$\_$\emph{DBPASS@}controller/glance \\ \\
+		
+		$\cdots$\\ \\
+		
+		[oslo$\_$messaging$\_$rabbit]\\
+		$\cdots$
+		rabbit$\_$host = controller \\
+		rabbit$\_$userid = openstack \\
+		rabbit$\_$password = RABBIT$\_$PASS\\
+		
+		$\cdots$\\ \\		
+		
+		[keystone$\_$authtoken] \\
+		$\cdots$ \\
+		auth$\_$uri = http://controller:5000 \\
+		auth$\_$url = http://controller:35357 \\
+		auth$\_$plugin = password \\
+		project$\_$domain$\_$id = default \\
+		user$\_$domain$\_$id = default \\
+		project$\_$name = service \\				
+		username = glance \\
+		password = \emph{NOVAPASS}\\ \\
+		$\cdots$ \\ \\
+
+		[glance]\\
+		$\cdots$		\\
+		host = \emph{controller} \\ \\
+		$\cdots$ \\ \\		
+		
+		[oslo$\_$concurrency] \\
+		$\cdots$\\
+		lock$\_$path = /var/lib/nova/tmp		
+	\end{snugshade}
+\end{enumerate}
+
+\subsection{Finalizando a instalação}
+\begin{enumerate}
+	\item Determinar se o nó compute suporta aceleração de hardware para maquinas virtuais
+	\begin{snugshade}
+		\$ egrep -c '(vmx|svm)' /proc/cpuinfo
+	\end{snugshade}
+	
+	Se o comando retornar valor maior ou igual a 1, o nó compute suporta aceleração de hardware.
+	Se o comando retornar valor igual a 0, o nó compute nao suporta aceleração de hardware e é então necessário configurar \emph{libvirt} para usar QEMU no lugar de KVM
+	
+	\begin{itemize}
+	 \item	Edite a seção \emph{[libvirt]} em \emph{/etc/nova/nova-compute.conf} como mostra a seguir
+		\begin{snugshade}
+			[libvirt]\\
+			$\cdots$\\
+			virt$\_$type=qemu
+		\end{snugshade}
+	\end{itemize}
+	
+	\item Reiniciar o serviço Compute
+	\begin{snugshade}
+		\# service nova-compute restart
+	\end{snugshade}
+	
+	\item Por padrão, os pacotes Ubuntu cria um banco de dados SQLite. 
+	Por conta desta configuracao utilizar o servidor banco de dados SQL, remover a base de dados do arquivo SQLite:
+	\begin{snugshade}
+		\# rm -f /var/lib/nova/nova.db
+	\end{snugshade}		
+\end{enumerate}
+
+\section{Verificar a Operação}
+
+\begin{enumerate}
+		\item De origem as credenciais de administrador para ter acesso ao admin-somente comandos CLI:
+		\begin{snugshade}
+			\$ source admin-openrc.sh
+		\end{snugshade}			
+		
+		\item 	Listar os componentes de serviço para verificar se executou com sucesso e registrar cada processo
+		\begin{snugshade}
+			\$ nova service-list
+		\end{snugshade} 
+		
+		\item Listar os nós extremos da API 	no serviço de autenticação para verificar conectividade com o serviço de autenticação
+		\begin{snugshade}
+			\$ nova endpoints
+		\end{snugshade} 		
+		
+		\item Listar as imagens 	no catálogo de serviço de imagens para verificar a conectividade com o serviço de imagens
+		\begin{snugshade}
+			\$ nova image-list
+		\end{snugshade} 			
+\end{enumerate}

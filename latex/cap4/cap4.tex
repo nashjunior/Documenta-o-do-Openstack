@@ -1,0 +1,222 @@
+\chapter{Serviço de Imagem}
+O serviço de imagem do OpenStack (glance) permite que os usuários para descobrir, registrar e recuperar imagens de máquinas virtuais. Ele oferece uma API REST que permite consultar metadados imagem de máquina virtual e recuperar uma imagem real. pode armazenar imagens de máquinas virtuais disponibilizados através do serviço de imagem em uma variedade de locais, de sistemas de arquivos simples de se opor de armazenamento de sistemas como o Object Storage OpenStack.
+
+\section{Serviço de Imagem Openstack}
+
+O serviço de imagem do OpenStack aceita solicitações de API para disco ou imagens de servidor, e metadados de imagens dos usuários finais ou componentes OpenStack Compute. Ele também suporta o armazenamento de imagens de disco ou servidor em vários tipos de repositório, incluindo o OpenStack Object Storage
+
+Um número de processos periódicos executado no serviço de imagem OpenStack para suportar o armazenamento em cache. serviços de replicação de assegurar a consistência e disponibilidade por meio do cluster. Outros processos periódicos incluem auditores, atualizadores e ceifeiros.
+
+O serviço de imagem do OpenStack possui os seguintes Componentes \\
+\begin{tabular}{|l||c|c}
+\hline
+	glance-api& Aceita chamadas Imagem de API para a descoberta de\\& imagem, recuperação e armazenamento. \\
+
+\hline \hline
+glance-registry& Armazena, processos e recupera metadados sobre\\& imagens. Os metadados incluem itens como\\& tamanho e tipo. \\
+
+\hline \hline
+Banco de Dados& Armazena imagem metadados e pode ser escolhido\\& o seu banco de dados, dependendo da preferência. \\
+
+\hline \hline
+Repositório de armazenamento \\para arquivos de imagem& Vários tipos de repositórios são suportados, incluindo\\& sistemas de arquivos normais,dispositivos de\\& bloco RADOS,
+HTTP e Amazon S3. Alguns destes\\& repositórios são somente de leitura.
+\end{tabular}
+
+\section{Instalando e configurando os pacotes}
+
+	\subsection{Configurando pre-requisitos}
+	
+Antes de instalar e configurar o serviço de imagem, deve ser criado um banco de dados, as credenciais de serviço, e ponto final API.
+
+	\begin{enumerate}
+		\item Acessar o banco de dados de acesso cliente para conectar ao servidor da base de dados como \emph{root} usuário:
+		\begin{snugshade}
+			\$ mysql -u root -p
+		\end{snugshade}
+	
+		\item Para criar o banco de dados, executar as seguintes instruçoes
+		\begin{snugshade}
+			CREATE DATABASE glance; \\ \\
+			GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'GLANCE$\_$DBPASS'; \\ \\
+			GRANT ALL PRIVILEGES ON glance.* TO 'glance'@''\%' IDENTIFIED BY '\emph{GLANCE$\_$DBPASS}'
+			\end{snugshade}
+			
+		\item De origem as credenciais de administrador para ter acesso ao admin-somente comandos CLI:
+		\begin{snugshade}	
+			\$ source admin-openrc.sh
+		\end{snugshade}	
+		
+		\item Para criar as credenciais de serviço, execute as seguintes funcoes
+		
+		\begin{itemize}
+			\item Criar usuario glance
+				\begin{snugshade}	
+					\$ 	keystone user-create --name glance --pass \$KEYSTONE$\_$USER$\_$GLANCE$\_$PASSWORD --email \$EMAIL$\_$GLANCE
+				\end{snugshade}	
+	
+	
+			\item Adicionar a regra \emph{admin}	para o usuário \emph{glance} e o projeto de serviço
+				\begin{snugshade}	
+					\$ keystone user-role-add --user glance --tenant service --role admin
+				\end{snugshade}	
+
+			\item Criar a entidade de serviço \emph{glance}
+				\begin{snugshade}
+						keystone service-create --name glance --type image --description "OpenStack Image Service"
+				\end{snugshade}			
+			
+			
+			\item Criar API endpoint do serviço de imagem
+				\begin{snugshade}	
+					\$ keystone endpoint-create \textbackslash \\
+	  --service-id \$(keystone service-list \textbar awk '\textbar image / {print \$2}') \textbackslash \\
+	  --publicurl http://controller:9292 \textbackslash \\
+	  --internalurl http://controller:9292 \textbackslash \\
+	  --adminurl http://controller:9292 \textbackslash \\
+	  --region regionOne
+				\end{snugshade}	
+		\end{itemize}				
+				
+	\end{enumerate}
+	
+	\subsection{Instalar e configurar componentes}
+	\begin{enumerate}
+		\item Instalar pacotes
+			\begin{snugshade}
+				\# apt-get install glance python-glanceclient
+			\end{snugshade}
+		
+		\item Editar o arquivo \emph{/etc/glance/glance-api.conf} e editar os seguintes dados
+			\begin{snugshade}
+				[database] \\
+				$\cdots$ \\
+				connection = mysql://glance:GLANCE$\_$\emph{DBPASS@}controller/glance \\ \\
+				$\cdots$ \\ \\
+				
+				[keystone$\_$authtoken] \\
+				$\cdots$ \\
+				auth$\_$uri = http://controller:5000 \\
+				auth4$\_$url = http://controller:35357 \\
+				auth$\_$plugin = password \\
+				project$\_$domain$\_$id = default \\
+				user$\_$domain$\_$id = default \\
+				project$\_$name = service \\				
+				username = glance \\
+				password = \emph{GLANCE$\_$PASS}\\ \\
+				$\cdots$ \\ \\
+				
+				[paste$\_$deploy]\\
+				$\cdots$ \\
+				flavor = keystone \\ \\
+				$\cdots$ \\ \\
+				
+				[glance$\_$store] \\
+				$\cdots$ \\
+				default$\_$store = file \\
+				filesystem$\_$store$\_$datadir = /var/lib/glance/images/ \\ \\
+				$\cdots$ \\ \\				
+				
+				[default] \\
+				$\cdots$ \\
+				notification$\_$driver = noop \\
+				$\cdots$ \\
+				verbose = True
+			\end{snugshade}
+			
+		\item Editar arquivo \emph{/etc/glance/glance-registry.conf} com as seguintes configurações
+			\begin{snugshade}
+				[database] \\
+				$\cdots$ \\
+				connection = mysql://glance:GLANCE$\_$\emph{DBPASS@}controller/glance \\ \\
+				$\cdots$ \\ \\
+				
+				[keystone$\_$authtoken] \\
+				$\cdots$ \\
+				auth$\_$uri = http://controller:5000 \\
+				auth$\_$url = http://controller:35357 \\
+				auth$\_$plugin = password \\
+				project$\_$domain$\_$id = default \\
+				user$\_$domain$\_$id = default \\
+				project$\_$name = service \\				
+				username = glance \\
+				password = \emph{GLANCE$\_$PASS}\\ \\
+				$\cdots$ \\ \\
+				
+				[paste$\_$deploy]\\
+				$\cdots$ \\
+				flavor = keystone \\ \\
+				$\cdots$ \\ \\
+				
+				[default] \\
+				$\cdots$ \\
+				notification$\_$driver = noop \\
+				$\cdots$ \\
+				verbose = True
+			\end{snugshade}		
+
+		\item Popular o banco de dados do serviço de imagem
+			\begin{snugshade}
+			\# su -s /bin/sh -c "glance-manage db$\_$sync" glance
+			\end{snugshade}		
+	\end{enumerate}
+	
+	\subsection{Finalizando a Instalação}
+		\begin{enumerate}
+			\item Reiniciar os serviços do serviço de imagem
+				\begin{snugshade}
+					\# service glance-registry restart \\
+					\# service glance-api restart \\
+				\end{snugshade}
+				
+			\item Por padrão, os pacotes Ubuntu cria um banco de dados SQLite. 
+			Por conta desta configuracao utilizar o servidor banco de dados SQL, remover a base de dados do arquivo SQLite:
+			\begin{snugshade}
+				\# rm -f /var/lib/nova/nova.db
+			\end{snugshade}		
+		\end{enumerate}
+		
+\section{Verificar Operação}
+
+Verificar o funcionamento do serviço de imagem usando CirrOS, que é uma imagem pequena Linux que ajuda a testar a implantação OpenStack.
+
+\begin{enumerate}
+	\item Em cada ambiente de script de cliente, configurar o cliente serviço de imagem para usar a versão da API 2.0
+		\begin{snugshade}
+			\$ echo "export OS$\_$IMAGE$\_$API$\_$VERSION=2" \textbar tee -a admin-openrc.sh demo-openrc.sh
+		\end{snugshade}		
+	
+	\item De origem as credenciais de administrador para ter acesso ao admin-somente comandos CLI:
+		\begin{snugshade}
+			\$ source admin-openrc.sh
+		\end{snugshade}			
+		
+	\item Criar um diretório temporário local
+		\begin{snugshade}
+			\$ mkdir /tmp/images
+		\end{snugshade}					
+		
+	\item Faça o download da imagem dentro do diretório
+		\begin{snugshade}
+			\$ wget -P /tmp/images http://download.cirros-cloud.net/0.3.4/cirros-0.3.4-
+x86$\_$64-disk.img
+		\end{snugshade}							
+		
+	\item Faça o Upload da imagem para o serviço de imagem usando o formato de disco QCOW2 , formato de container \emph{bare}, visibilidade publica,ou seja, todos os projetos podem acessá-lo
+		\begin{snugshade}
+			\$ glance image-create --name "cirros-0.3.4-x86$\_$64" --file /tmp/images/
+cirros-0.3.4-x86$\_$64-disk.img \textbackslash \\
+--disk-format qcow2 --container-format bare --is-public True --progress \textless cirros-0.3.2-x86$\_$64-disk.img
+progress
+		\end{snugshade}						
+	
+	\item Confirmar o upload da imagem e validar atributos
+		\begin{snugshade}
+			\$ glance image-list
+		\end{snugshade}			
+		
+	\item Remover o diretório temporário local e seus arquivos
+		\begin{snugshade}
+			\$ rm -r /tmp/images
+		\end{snugshade}									
+\end{enumerate}

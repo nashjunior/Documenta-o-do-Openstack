@@ -1,0 +1,342 @@
+\chapter{Serviço de Autenticação}
+
+\section{Conceitos da Autenticação no Openstack}
+
+O serviço de autenticação do OpenStack (\emph{Openstack Identity service}) tem as seguintes funções :
+
+\begin{itemize}
+	\item Localizar usuarios e suas permissões
+	\item Prover um catálogo dos serviços com seus terminais	
+\end{itemize}
+
+	Quando está instalando o serviço de autenticação do Openstack, é necessário registrar cada servico na instalação do Openstack. O serviço de autenticação pode localizar qual serviço do OpenStack estão instalados, e onde eles estão localizados na rede	
+	
+	Para entender o \emph{OpenStack Identity}, deve-se entender os seguintes conceitos:
+	
+	\begin{tabular}{|l||c|c|}
+	\hline	
+	Usuario&	 Representação Digital de uma pessoa, sistema ou serviço\\& de quem usa os serviços OpenStack cloud.Usuários possuem\\& login e podem ser associado tokens para acesso de recursos \\
+	
+	\hline \hline
+	
+	Credenciais& Dado que confirma a autenticação do usuário.\\& Exemplo: nome de usuário e chave de API, ou token de\\& autenticação provido pelo servico de autenticação \\
+	
+	\hline \hline
+	
+	Autenticação& Processo que confirma a identidade de usuário.\\& O \emph{OpenStack Identity} confirma que uma requisição por validação\\& de um conjunto de credenciais foi fornecido pelo usuário \\
+	
+	\hline \hline
+	
+	Token& Uma string alfa-numérico usado para acessar as APIs\\& do OpenStack e recursos. Um token pode ser cancelar em\\& qualquer tempo e é valido por um tempo finito.Seu principal\\& objetivo é ser um serviço de integração, e não aspirar a\\& ser um armazenamento de identidade de pleno direito\\& e solução de gerenciamento. \\
+	
+	\hline \hline
+	
+	Tenant& Um container usado para agrupar ou isolar recursos.\\& \emph{Tenants} também agrupa ou isola objetos de autenticação.\\& Dependendo do operador de serviço, um \emph{tenant} pode mapear conta,\\& organização ou projeto. \\
+	
+	\hline \hline
+	
+	Serviço&  Um serviço do OpenStack, assim como Compute(Nova)\\& ou serviço de Imagem(Glance). Provê ou mais "\emph{endpoints}"\\& no qual usuários podem acessar recursos\\& e  executar operações. \\
+	
+	\hline \hline
+	
+	Endpoint& Um endereço de rede acessível onde se pode acessar\\& o servico, geralmente com endereço de URL. \\
+	
+	\hline \hline
+	
+	Regra& Uma característica com um conjunto definido de \\&direitos do usuário e privilégios para executar um\\& conjunto específico de operações \\
+	
+	\hline \hline
+	Keystone Cliente& Uma interface linha de comando para a\\& API de autenticação do OpenStack, exemplo: usuário\\& executa os comandos \textbf{keystone service-create}\\& e \textbf{keystone endpoint-create} para o registrar serviços na instalação do \\&OpenStack
+	\end{tabular}
+	
+	\begin{center}
+			\includegraphics[width=\textwidth, height=\textheight,keepaspectratio]{/home/nashjunior/Documentos/latex/img/keystone-diagrama.png}
+	\end{center}
+
+\section{Instalando e Configurando}
+	Todos os comandos de instalação do Openstack serão feitos no nó controlador. Por questão de performance, esta configuração implanta o \emph{Apache HTTP server} para tratar requisições e \emph{Memcached} para armazenar os tokens no lugar de um banco de dados SQL.
+	
+	\subsection{Configurando os requisitos}
+	Antes de iniciar o serviço de autenticação, é necessário criar uma base de dados e um token de administração.\\
+	\begin{enumerate}
+	
+		\item Para criar a base de dados, executar as seguintes instruções:
+		\begin{itemize}
+			\item Acessar o banco de dados de acesso cliente para conectar ao servidor da base de dados como \emph{root} usuário:
+			\begin{snugshade}
+				\$ mysql -u root -p
+			\end{snugshade}
+			
+			\item Criar a base de dados \emph{keystone}
+			\begin{snugshade}
+				CREATE DATABASE keystone; \\ \\
+				GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'KEYSTONE$\_$DBPASS'; \\ \\
+				GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@''\%' IDENTIFIED BY '\emph{KEYSTONE$\_$DBPASS}'
+			\end{snugshade}			
+			\item Sair do MariaDB
+		\end{itemize}
+	\end{enumerate}
+	
+	\subsection{Instalando os componentes de autenticação}
+	\begin{enumerate}
+		\item Desativar o serviço \emph{keystone} de iniciar automaticamente após a instalação
+		
+		\begin{snugshade}
+			\# echo "manual" \textgreater /etc/init/keystone.override \\
+		\end{snugshade} 
+		
+		\item Executar o seguinte comando para instalar os pacotes
+		\begin{snugshade}
+			\# apt-get install keystone python-openstackclient apache2 libapache2-mod-wsgi memcached python-memcache
+		\end{snugshade}
+		
+		\item Editar o arquivo \emph{/etc/keystone/keystone.conf} e realize as seguintes modificações:
+		\begin{snugshade}
+			[DEFAULT] \\
+			$\cdots$ \\
+			admin token = \emph{ADMIN$\_$TOKEN} \\ \\
+			$\cdots$ \\
+			verbose = true
+			$\cdots$ \\ \\
+			
+			[database] \\
+			$\cdots$ \\
+			connection = mysql://keystone:\emph{KEYSTONE$\_$DBPASS}@controller/keys\\tone
+			$\cdots$ \\ \\
+			
+			[memcache] \\
+			$\cdots$ \\
+			servers = localhost:11211 \\ \\
+			$\cdots$ \\ \\
+			
+			[token]
+			$\cdots$ \\ 
+			provider = keystone.token.providers.uuid.Provider \\
+			driver = keystone.token.persistence.backends.memcache.Token \\
+			$\cdots$ \\ \\
+			
+			[revoke] \\
+			$\cdots$ \\ 
+			driver = keystone.contrib.revoke.backends.sql.Revoke
+		\end{snugshade}	
+		
+		\item Sincronizar a base de dados do serviço de autenticação
+		\begin{snugshade}
+			\# su -s /bin/sh -c "keystone-manage db$\_$sync" keystone
+		\end{snugshade}
+	\end{enumerate}
+	
+	\subsubsection{Configurar o servidor Apache HTTP}
+		\begin{enumerate}
+			\item Editar o arquivo \emph{/etc/apache2/apach2.conf} com os seguintes dados
+			\begin{snugshade}
+				ServerName \emph{controller}
+			\end{snugshade}
+			
+			\item Criar arquivo \emph{/etc/apache2/sites-available/wsgi-keystone.conf} com as seguintes configurações:
+			\begin{snugshade}
+				\textless VirtualHost $\ast$:5000 \textgreater\\ 
+				\hspace*{2 cm}WSGIDaemonProcess keystone-public processes=5 threads=1 user=keystone display-name=$\%$\{GROUP\} \\
+				\hspace*{2 cm} WSGIProcessGroup keystone-public \\
+				\hspace*{2 cm} WSGIScriptAlias / /var/www/cgi-bin/keystone/main\\
+				\hspace*{2 cm} WSGIApplicationGroup $\%$\{GLOBAL\} \\
+				\hspace*{2 cm} WSGIPassAuthorization On \\
+				\hspace*{2 cm} \textless IfVersion \textgreater = 2.4 \textgreater \\
+				\hspace*{3 cm}	ErrorLogFormat "$\%$\{cu\}t \%M" \\
+				\hspace*{2 cm} \textless /IfVersion \textgreater
+				\hspace*{2 cm} LogLevel info \\
+				\hspace*{2 cm} ErrorLog /var/log/apache2/keystone-error.log \\
+				\hspace*{2 cm} CustomLog /var/log/apache2/keystone-access.log combined
+       			\textless VirtualHost $\ast$:5000 \textgreater \\ \\
+       			
+  				\textless VirtualHost $\ast$:35357 \textgreater\\ 
+				\hspace*{2 cm}WSGIDaemonProcess keystone-public processes=5 threads=1 user=keystone display-name=$\%$\{GROUP\} \\
+				\hspace*{2 cm} WSGIProcessGroup keystone-public \\
+				\hspace*{2 cm} WSGIScriptAlias / /var/www/cgi-bin/keystone/main\\
+				\hspace*{2 cm} WSGIApplicationGroup $\%$\{GLOBAL\} \\
+				\hspace*{2 cm} WSGIPassAuthorization On \\
+				\hspace*{2 cm} \textless IfVersion \textgreater = 2.4 \textgreater \\
+				\hspace*{3 cm}	ErrorLogFormat "$\%$\{cu\}t \%M" \\
+				\hspace*{2 cm} \textless /IfVersion \textgreater
+				\hspace*{2 cm} LogLevel info \\
+				\hspace*{2 cm} ErrorLog /var/log/apache2/keystone-error.log \\
+				\hspace*{2 cm} CustomLog /var/log/apache2/keystone-access.log combined
+       			\textless VirtualHost $\ast$:35357 \textgreater \\ \\
+			\end{snugshade}
+			
+			\item Permitir o \emph{virtual host} do serviço de autenticação
+			\begin{snugshade}
+				\# ln -s /etc/apache2/sites-available/wsgi-keystone.conf /etc/apache2/sites-enabled
+			\end{snugshade}
+			
+			\item Criar a estrutura diretório para os componentes WSGI:
+			\begin{snugshade}
+				\# mkdir -p /var/www/cgi-bin/keystone
+			\end{snugshade}
+			
+			\item Copiar os componentes WSGI do repositório no diretório
+			\begin{snugshade}
+				\# curl http://git.openstack.org/cgit/openstack/keystone/plain/httpd/
+keystone.py?h=stable/kilo $\backslash$ \\ | tee /var/www/cgi-bin/keystone/main /var/www/cgi-bin/keystone/admin
+			\end{snugshade}
+			
+			\item Ajustar ao proprietário permissoes neste diretório nos arquivos dentro dele:
+			\begin{snugshade}
+				\# chown -R keystone:keystone /var/www/cgi-bin/keystone \\
+				\# chmod 755 /var/www/cgi-bin/keystone/*
+			\end{snugshade}
+		\end{enumerate}		
+		
+		\subsubsection{Finalizar instalação}
+		\begin{enumerate}
+			\item Reiniciar o servidor Apache HTTP
+			\begin{snugshade}
+			\#	service apache2 restart
+			\end{snugshade}
+			\item Por padrão, os pacotes Ubuntu cria um banco de dados SQLite. 
+			Por conta desta configuracao utilizar o servidor banco de dados SQL, remover a base de dados do arquivo SQLite:
+			\begin{snugshade}
+				\# rm -f /var/lib/keystone/keystone.db
+			\end{snugshade}
+		\end{enumerate}
+		
+\section{Criar serviços de entrada e API endpoint}
+O serviço de autenticação fornece um catálogo de serviços e suas localizações. Cada serviço que adicionar ao ambiente OpenStack requer uma entidade de serviço e vários endpoint API no catálogo.
+
+É necessário passar o valor de token autenticação para o comando \textbf{Openstack} com parametro \emph{--os-token} ou cojunto de variável ambiente \emph{OS\_$TOKEN$}. Similarmente, é necessário passar o valor da URL do serviço de autenticação para o comando \textbf{openstack} com  \emph{--os-url} ou conjunto de variável ambiente \emph{OS\_$URL$}
+\begin{enumerate}
+	\item Configurar o token de autenticação 
+	\begin{snugshade}
+		\$ export OS$\_$TOKEN=\emph{ADMIN$\_$TOKEN}
+	\end{snugshade}
+	
+	\item Configurar o endpoint URL
+	\begin{snugshade}
+		\$ export OS$\_$URL=http://controller:35357/v2.0
+	\end{snugshade}	
+\end{enumerate}
+
+\subsection{Criar o entidade serviço e API endpoint}
+\begin{enumerate}
+	\item Criar a entidade de serviço para API endpoint
+	\begin{snugshade}
+		\$ keystone tenant-create --name admin --description "Admin Tenant" \\ \\ \\
+	\end{snugshade}
+	
+	\item Criar API serviço de autenticação endpoint
+	\begin{snugshade}
+		\$ keystone endpoint-create \ \\
+		--service-id \$(keystone service-list | awk '/ identity / {print \$2}') \ \\
+		--publicurl http://controller:5000/v2.0 \ \\
+		--internalurl http://controller:5000/v2.0 \ \\
+		--adminurl http://controller:35357/v2.0 \ \\
+		--region regionOne
+	\end{snugshade}	
+\end{enumerate}
+
+\section{Criar projetos,usuários e regras}
+\begin{enumerate}
+	\item Criar \emph{projeto} admin
+	\begin{snugshade}
+		\$	keystone tenant-create --name admin --description "Admin Tenant"
+	\end{snugshade}	
+	
+	\item Criar usuário \emph{admin}
+	\begin{snugshade}
+		\$	keystone user-create --name admin --pass \$USER$\_$ADMIN$\_$PASSWORD --email \$EMAIL$\_$ADMIN
+	\end{snugshade}		
+	
+	\item Criar regra \emph{admin}
+	\begin{snugshade}
+		\$	keystone role-create --name admin
+	\end{snugshade}		
+	
+	\item Adicionar a regra \emph{admin} para o projeto e usuário \emph{admin}
+	\begin{snugshade}
+		\$	keystone user-role-add --user admin --tenant admin --role admin
+	\end{snugshade}			
+	
+\end{enumerate}
+
+Tarefas regulares (nao-administrador) deve usar projeto e usuários nao privilegiados.
+
+\begin{enumerate}
+	\item Criar \emph{demo} Projeto
+	\begin{snugshade}
+		\$	tenant-create --name demo --description "Demo Tenant"
+	\end{snugshade}				
+	
+	\item Criar usuário \emph{demo}
+	\begin{snugshade}
+		\$		keystone user-create --name demo --tenant demo --pass USER$\_$DEMO$\_$PASSWORD --email EMAIL$\_$DEMO
+	\end{snugshade}					
+	
+	\item Criar regra \emph{usuário} 
+	\begin{snugshade}
+		\$	 keystone user-role-add --user=demo --role=$\_$member\_ --tenant=demo
+	\end{snugshade}					
+
+\end{enumerate}
+
+	
+	\section{Verificar Operação}
+	\begin{enumerate}
+		\item Por razões de segurança, desativar temporariamente mecanismo de autenticação de token editando o arquivo \emph{/etc/keystone/keystone-paste.ini} e remover a linha \emph{admin$\_$token$\_$auth} nas seções \emph{[pipeline:public$\_$api]}, \emph{[pipeline:admin$\_$api]} e \emph{[pipeline:api$\_$v3]}.	
+		
+		\item Retirar temporariamente as variaveis de ambiente \emph{OS$\_$TOKEN} e \emph{OS$\_$URL}
+		\begin{snugshade}
+			\$ unset OS$\_$TOKEN OS$\_$URL
+		\end{snugshade}
+	\end{enumerate}
+	
+		\item Como usuário administrador, requisitar um token de autenticação da API 2.0 de autenticação
+		\begin{snugshade}
+			\$ keystone --os-tenant-name admin --os-username admin --os-password\\ \$USER$\_$ADMIN$\_$PASSWORD \
+		--os-auth-url "http://controller:35357/v2.0" token-get
+		\end{snugshade}		
+		
+		\item Como \emph{administrador}, listar projetos, usuarios, regras que verificam que o \emph{administrador} pode executar apenas comandos de administrador e esse serviço de autenticacao contem os projetos criados nas duas seções anteriores
+		
+		\begin{snugshade}
+			\$ keystone --os-tenant-name admin --os-username admin --os-password\\ \$USER$\_$ADMIN$\_$PASSWORD \ \\
+		--os-auth-url "http://controller:35357/v2.0" user-list
+		\end{snugshade}
+		
+		
+		\begin{snugshade}
+			\$ keystone --os-tenant-name admin --os-username admin --os-password\\ \$USER$\_$ADMIN$\_$PASSWORD \
+		--os-auth-url "http://controller:35357/v2.0" role-list
+		\end{snugshade}
+		
+		
+		\item Como \emph{demo} usuário, requisitar um token de identificação da API 2.0 de autenticação e uma lista de usuários
+		\begin{snugshade}
+			\$ keystone --os-tenant-name demo --os-username demo --os-password \\ \$USER$\_$DEMO$\_$PASSWORD \
+		--os-auth-url "http://controller:35357/v2.0" token-get
+		\end{snugshade}		
+		
+		\begin{snugshade}
+			\$ keystone --os-tenant-name demo --os-username demo --os-password \\ \$USER$\_$DEMO$\_$PASSWORD \
+		--os-auth-url "http://controller:35357/v2.0" user-list
+		\end{snugshade}		
+		
+		\section{Criar scripts de ambiente para cliente OpenStack }
+		A seção anterior usou uma combinação de variáveis de ambiente e opções de comandos para interagir com o serviço de Identidade através do cliente OpenStack. Para aumentar a eficiência das operações do cliente, OpenStack suporta scripts simples ambiente cliente também conhecidos como arquivos OpenRC.
+		
+		\begin{enumerate}
+			\item Crie e edite o arquivo \emph{admin-openrc.sh} com os seguintes dados
+			\begin{snugshade}
+				export OS$\_$TENANT$\_$NAME=admin \\
+				export OS$\_$USERNAME=admin \\
+				export OS$\_$PASSWORD=ADMIN$\_$PASS \\
+				export OS$\_$AUTH$\_$URL=http://controller:35357/v3 \\
+			\end{snugshade}
+			
+			\item Crie e edite o arquivo \emph{demo-openrc.sh} com os seguintes dados
+			\begin{snugshade}
+				export OS$\_$TENANT$\_$NAME=demo \\
+				export OS$\_$USERNAME=demo \\
+				export OS$\_$PASSWORD=ADMIN$\_$PASS \\
+				export OS$\_$AUTH$\_$URL=http://controller:35357/v3 \\
+			\end{snugshade}
+		\end{enumerate}
